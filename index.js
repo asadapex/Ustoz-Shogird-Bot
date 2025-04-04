@@ -139,31 +139,74 @@ bot.action("tasdiq_ha", async (ctx) => {
       elonMatni += `${savollar[step]} ${value}\n`;
     });
 
-    const admin = ctx.from.username
-      ? `@${ctx.from.username}`
-      : `${ctx.from.first_name || "Admin"}`;
-    const timestamp = new Date().toLocaleString();
-
-    try {
-      await bot.telegram.deleteMessage(
-        process.env.CHANNEL_ID,
-        ctx.callbackQuery.message.message_id
-      );
-    } catch (err) {
-      console.log("Xabar o'chirilganda xatolik:", err.message);
-    }
-
-    await bot.telegram.sendMessage(
+    const sentMessage = await bot.telegram.sendMessage(
       process.env.NEW_CHANNEL_ID,
-      `${elonMatni}\n\n✅ Tasdiqladi: ${admin}\n🕒 ${timestamp}`,
-      { parse_mode: "Markdown" }
+      elonMatni,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [Markup.button.callback("✅ Accept", "accept")],
+            [Markup.button.callback("❌ Decline", "decline")],
+          ],
+        },
+      }
     );
 
-    ctx.reply("✅ E’loningiz tasdiqlandi va 3-kanalga yuborildi.");
+    sentMessages[sentMessage.message_id] = {
+      userId: ctx.from.id,
+      messageId: sentMessage.message_id,
+      elonType: ctx.session.elonType,
+      data: ctx.session.data,
+    };
+
+    ctx.reply("✅ E’loningiz admin tasdiqlashini kutmoqda.");
     ctx.session = null;
   } catch (error) {
     console.error("Tasdiqlashda xatolik:", error);
     ctx.reply("❌ Xatolik yuz berdi. Iltimos, qayta urinib ko‘ring.");
+  }
+});
+
+bot.action("accept", async (ctx) => {
+  try {
+    const messageId = ctx.callbackQuery.message.message_id;
+
+    if (sentMessages[messageId]) {
+      const elon = sentMessages[messageId];
+      const steps = elonTurlari[elon.elonType];
+
+      let elonMatni = `📢 *${elon.elonType}*\n\n`;
+      steps.forEach((step) => {
+        let value = elon.data[step] || "Ma’lumot kiritilmagan";
+        elonMatni += `${savollar[step]} ${value}\n`;
+      });
+
+      const admin = ctx.from.username
+        ? `@${ctx.from.username}`
+        : `${ctx.from.first_name || "Admin"}`;
+      const timestamp = new Date().toLocaleString();
+
+      try {
+        await bot.telegram.deleteMessage(process.env.CHANNEL_ID, messageId);
+      } catch (err) {
+        console.log("Xabar o'chirilganda xatolik:", err.message);
+      }
+
+      await bot.telegram.sendMessage(
+        process.env.NEW_CHANNEL_ID,
+        `${elonMatni}\n\n✅ Tasdiqladi: ${admin}\n🕒 ${timestamp}`,
+        { parse_mode: "Markdown" }
+      );
+
+      ctx.answerCbQuery("✅ E’lon tasdiqlandi.");
+    } else {
+      ctx.answerCbQuery("❌ Tasdiqlash uchun e’lon topilmadi");
+    }
+
+    delete sentMessages[messageId];
+  } catch (error) {
+    console.error("Tasdiqlashda xatolik:", error);
+    ctx.answerCbQuery("❌ Xatolik yuz berdi.");
   }
 });
 
