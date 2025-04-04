@@ -133,14 +133,13 @@ bot.action("tasdiq_ha", async (ctx) => {
     const steps = elonTurlari[elonType];
 
     let elonMatni = `📢 *${elonType}*\n\n`;
-
     steps.forEach((step) => {
-      let value = ctx.session.data[step] || "Ma’lumot kiritilmagan";
+      const value = ctx.session.data[step] || "Ma’lumot kiritilmagan";
       elonMatni += `${savollar[step]} ${value}\n`;
     });
 
     const sentMessage = await bot.telegram.sendMessage(
-      process.env.NEW_CHANNEL_ID,
+      process.env.CHANNEL_ID,
       elonMatni,
       {
         reply_markup: {
@@ -155,7 +154,7 @@ bot.action("tasdiq_ha", async (ctx) => {
     sentMessages[sentMessage.message_id] = {
       userId: ctx.from.id,
       messageId: sentMessage.message_id,
-      elonType: ctx.session.elonType,
+      elonType,
       data: ctx.session.data,
     };
 
@@ -177,7 +176,7 @@ bot.action("accept", async (ctx) => {
 
       let elonMatni = `📢 *${elon.elonType}*\n\n`;
       steps.forEach((step) => {
-        let value = elon.data[step] || "Ma’lumot kiritilmagan";
+        const value = elon.data[step] || "Ma’lumot kiritilmagan";
         elonMatni += `${savollar[step]} ${value}\n`;
       });
 
@@ -186,11 +185,7 @@ bot.action("accept", async (ctx) => {
         : `${ctx.from.first_name || "Admin"}`;
       const timestamp = new Date().toLocaleString();
 
-      try {
-        await bot.telegram.deleteMessage(process.env.CHANNEL_ID, messageId);
-      } catch (err) {
-        console.log("Xabar o'chirilganda xatolik:", err.message);
-      }
+      await bot.telegram.deleteMessage(process.env.CHANNEL_ID, messageId);
 
       await bot.telegram.sendMessage(
         process.env.NEW_CHANNEL_ID,
@@ -198,7 +193,13 @@ bot.action("accept", async (ctx) => {
         { parse_mode: "Markdown" }
       );
 
-      ctx.answerCbQuery("✅ E’lon tasdiqlandi.");
+      await bot.telegram.sendMessage(
+        process.env.ARCHIVE_CHANNEL_ID,
+        elonMatni,
+        { parse_mode: "Markdown" }
+      );
+
+      ctx.answerCbQuery("✅ E’lon tasdiqlandi");
     } else {
       ctx.answerCbQuery("❌ Tasdiqlash uchun e’lon topilmadi");
     }
@@ -247,4 +248,4 @@ bot.hears("📞 Admin bilan bog‘lanish", (ctx) => {
 });
 
 bot.launch();
-console.log("bot ishga tushdi");
+console.log("Bot ishga tushdi!");
